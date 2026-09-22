@@ -1,88 +1,188 @@
 """
 =============================================================================
 BLACKOUT ULTIMATE PACK — GHOST TACTICAL OUTFIT
-SCRIPT 03: Naming System & Validation
+SCRIPT 03: Naming System & Validation Utilities
 Target: Blender 3.6 LTS / 4.x
-Compatible Engine: Rockstar Advanced Game Engine (RAGE) / GTA V (player_one)
+Compatible Target: Franklin Clinton (GTA V PC)
 =============================================================================
 
-STATUS:
+STATUS CLASSIFICATION:
   [X] READY NOW: Python code verified against standard Blender bpy API.
   [!] REQUIRES BLENDER: Must be executed inside Blender's Python runtime.
-  [ ] REQUIRES GTA V: Verification against game files occurs during import/export.
+  [ ] REQUIRES SOLLUMZ: Mapping to .ydd files is finalized during Sollumz export.
 
 PURPOSE:
-  Enforces uniform asset, mesh, material, and texture naming conventions across
-  the entire project to prevent Sollumz export errors and broken dictionary links.
+  Enforces consistent, predictable naming conventions across the 10 canonical
+  tactical outfit components, their materials, and their texture sets:
+  - Assets:
+      GHOST_SHIRT, GHOST_PANTS, GHOST_VEST, GHOST_MASK, GHOST_HOOD,
+      GHOST_BOOTS, GHOST_GLOVES, GHOST_BELT, GHOST_GOGGLES, GHOST_HEADSET
+  - Mesh Prefixes:
+      LP_GHOST_<NAME> (Low-Poly), HP_GHOST_<NAME> (High-Poly)
+  - Materials:
+      MAT_GHOST_<NAME> or shared tactical materials (MAT_Tactical_Ripstop_Black, etc.)
+  - Textures:
+      GHOST_<NAME>_D (Diffuse/Albedo), GHOST_<NAME>_N (Normal), GHOST_<NAME>_S (Specular)
+=============================================================================
 """
 
 import bpy
 
-CANONICAL_ASSETS = {
-    "SHIRT":        {"slot": "jbib", "target_file": "jbib_001_u.ydd"},
-    "PANTS":        {"slot": "lowr", "target_file": "lowr_001_u.ydd"},
-    "VEST":         {"slot": "accs", "target_file": "accs_001_u.ydd"},
-    "MASK":         {"slot": "berd", "target_file": "berd_001_u.ydd"},
-    "HOOD":         {"slot": "p_head", "target_file": "p_head_001.ydd"},
-    "BOOTS":        {"slot": "feet", "target_file": "feet_001_u.ydd"},
-    "GLOVES":       {"slot": "hand", "target_file": "hand_001_u.ydd"},
-    "BELT":         {"slot": "accs", "target_file": "accs_002_u.ydd"},
-    "GOGGLES":      {"slot": "p_eyes", "target_file": "p_eyes_001.ydd"},
-    "HEADSET":      {"slot": "p_ears", "target_file": "p_ears_001.ydd"},
+CANONICAL_OUTFIT_COMPONENTS = {
+    "SHIRT": {
+        "full_name": "GHOST_SHIRT",
+        "category": "CLOTHING",
+        "gta_slot": "jbib",
+        "target_ydd": "jbib_001_u.ydd",
+        "material_primary": "MAT_Tactical_Ripstop_Black",
+        "textures": ["GHOST_SHIRT_D", "GHOST_SHIRT_N", "GHOST_SHIRT_S"],
+    },
+    "PANTS": {
+        "full_name": "GHOST_PANTS",
+        "category": "CLOTHING",
+        "gta_slot": "lowr",
+        "target_ydd": "lowr_001_u.ydd",
+        "material_primary": "MAT_Tactical_Ripstop_Black",
+        "textures": ["GHOST_PANTS_D", "GHOST_PANTS_N", "GHOST_PANTS_S"],
+    },
+    "VEST": {
+        "full_name": "GHOST_VEST",
+        "category": "ACCESSORY",
+        "gta_slot": "accs",
+        "target_ydd": "accs_001_u.ydd",
+        "material_primary": "MAT_Cordura_Black",
+        "textures": ["GHOST_VEST_D", "GHOST_VEST_N", "GHOST_VEST_S"],
+    },
+    "MASK": {
+        "full_name": "GHOST_MASK",
+        "category": "ACCESSORY",
+        "gta_slot": "berd",
+        "target_ydd": "berd_001_u.ydd",
+        "material_primary": "MAT_Tactical_Polymer",
+        "textures": ["GHOST_MASK_D", "GHOST_MASK_N", "GHOST_MASK_S"],
+    },
+    "HOOD": {
+        "full_name": "GHOST_HOOD",
+        "category": "CLOTHING",
+        "gta_slot": "p_head",
+        "target_ydd": "p_head_001.ydd",
+        "material_primary": "MAT_Tactical_Ripstop_Black",
+        "textures": ["GHOST_HOOD_D", "GHOST_HOOD_N", "GHOST_HOOD_S"],
+    },
+    "BOOTS": {
+        "full_name": "GHOST_BOOTS",
+        "category": "CLOTHING",
+        "gta_slot": "feet",
+        "target_ydd": "feet_001_u.ydd",
+        "material_primary": "MAT_Leather_Black",
+        "textures": ["GHOST_BOOTS_D", "GHOST_BOOTS_N", "GHOST_BOOTS_S"],
+    },
+    "GLOVES": {
+        "full_name": "GHOST_GLOVES",
+        "category": "CLOTHING",
+        "gta_slot": "hand",
+        "target_ydd": "hand_001_u.ydd",
+        "material_primary": "MAT_Leather_Black",
+        "textures": ["GHOST_GLOVES_D", "GHOST_GLOVES_N", "GHOST_GLOVES_S"],
+    },
+    "BELT": {
+        "full_name": "GHOST_BELT",
+        "category": "ACCESSORY",
+        "gta_slot": "accs",
+        "target_ydd": "accs_002_u.ydd",
+        "material_primary": "MAT_Cordura_Black",
+        "textures": ["GHOST_BELT_D", "GHOST_BELT_N", "GHOST_BELT_S"],
+    },
+    "GOGGLES": {
+        "full_name": "GHOST_GOGGLES",
+        "category": "ACCESSORY",
+        "gta_slot": "p_eyes",
+        "target_ydd": "p_eyes_001.ydd",
+        "material_primary": "MAT_Glass_Dark",
+        "textures": ["GHOST_GOGGLES_D", "GHOST_GOGGLES_N", "GHOST_GOGGLES_S"],
+    },
+    "HEADSET": {
+        "full_name": "GHOST_HEADSET",
+        "category": "ACCESSORY",
+        "gta_slot": "p_ears",
+        "target_ydd": "p_ears_001.ydd",
+        "material_primary": "MAT_Tactical_Polymer",
+        "textures": ["GHOST_HEADSET_D", "GHOST_HEADSET_N", "GHOST_HEADSET_S"],
+    },
 }
 
-def validate_scene_naming():
+
+def audit_scene_naming():
+    """Non-destructive audit of all mesh objects and materials in the scene."""
     print("\n==============================================")
     print("BLACKOUT GHOST // RUNNING SCRIPT 03: NAMING QA")
     print("==============================================")
-    
-    issues_found = 0
-    passed_objects = 0
 
-    for obj in bpy.data.objects:
-        if obj.type == 'MESH':
-            is_our_asset = False
-            for asset_key in CANONICAL_ASSETS.keys():
-                if asset_key in obj.name.upper():
-                    is_our_asset = True
-                    expected_name = f"LP_GHOST_{asset_key}"
-                    if not obj.name.startswith("LP_GHOST_") and not obj.name.startswith("HP_GHOST_"):
-                        print(f"[NAMING WARNING] Object '{obj.name}' should follow prefix 'LP_GHOST_{asset_key}'.")
-                        issues_found += 1
-                    else:
-                        passed_objects += 1
-                    break
+    matched_assets = 0
+    warnings = 0
 
-    for mat in bpy.data.materials:
-        if not mat.name.startswith("MAT_"):
-            print(f"[NAMING WARNING] Material '{mat.name}' is missing 'MAT_' prefix.")
-            issues_found += 1
-        else:
-            print(f"[NAMING PASS] Material '{mat.name}' conforms to standard.")
-
-    print(f"\n[NAMING AUDIT SUMMARY] Verified objects: {passed_objects} | Non-conforming items: {issues_found}")
-    if issues_found == 0:
-        print("[NAMING AUDIT RESULT] SUCCESS: All inspected assets comply with Blackout naming standard.")
+    print("\n--- Auditing Mesh Objects ---")
+    mesh_objects = [o for o in bpy.data.objects if o.type == 'MESH']
+    if not mesh_objects:
+        print("  [INFO] No mesh objects present in the scene yet.")
     else:
-        print("[NAMING AUDIT RESULT] ATTENTION: Review warnings above before proceeding to Sollumz export.")
+        for obj in mesh_objects:
+            obj_upper = obj.name.upper()
+            found_component = False
+            for key, info in CANONICAL_OUTFIT_COMPONENTS.items():
+                if key in obj_upper:
+                    found_component = True
+                    matched_assets += 1
+                    if obj.name.startswith("LP_GHOST_") or obj.name.startswith("HP_GHOST_"):
+                        print(f"  [PASS] Mesh '{obj.name}' conforms to canonical standard.")
+                    else:
+                        print(f"  [WARNING] Mesh '{obj.name}' detected as {key} but lacks LP_GHOST_ or HP_GHOST_ prefix.")
+                        warnings += 1
+                    break
+            if not found_component and not obj.name.startswith("REF_"):
+                print(f"  [INFO] Custom / scratch mesh: '{obj.name}' (untracked in canonical list).")
 
-def rename_active_to_canonical(asset_key):
-    obj = bpy.context.active_object
+    print("\n--- Auditing Materials ---")
+    if not bpy.data.materials:
+        print("  [INFO] No materials present in the scene yet.")
+    else:
+        for mat in bpy.data.materials:
+            if mat.name.startswith("MAT_"):
+                print(f"  [PASS] Material '{mat.name}' adheres to MAT_ prefix.")
+            else:
+                print(f"  [WARNING] Material '{mat.name}' is missing MAT_ prefix.")
+                warnings += 1
+
+    print(f"\n[NAMING QA SUMMARY] Matched canonical assets: {matched_assets} | Warnings: {warnings}")
+    if warnings == 0:
+        print("[NAMING QA RESULT] PASS: Scene conforms to Blackout naming standards.\n")
+    else:
+        print("[NAMING QA RESULT] WARNING: Review flagged naming anomalies above.\n")
+
+
+def rename_object_safely(obj, asset_key, is_high_poly=False):
+    """
+    Safely renames an existing mesh object and its underlying mesh data to canonical naming.
+    """
     if not obj or obj.type != 'MESH':
-        print("[RENAME ERROR] No active mesh object selected.")
-        return
-    
-    asset_key = asset_key.upper()
-    if asset_key not in CANONICAL_ASSETS:
-        print(f"[RENAME ERROR] Unknown asset key: {asset_key}. Valid keys: {list(CANONICAL_ASSETS.keys())}")
-        return
+        print(f"[RENAME ERROR] Invalid mesh object: {obj}")
+        return False
 
-    canonical_name = f"LP_GHOST_{asset_key}"
+    key = asset_key.upper()
+    if key not in CANONICAL_OUTFIT_COMPONENTS:
+        print(f"[RENAME ERROR] Unknown asset key: '{asset_key}'. Valid keys: {list(CANONICAL_OUTFIT_COMPONENTS.keys())}")
+        return False
+
+    prefix = "HP_GHOST_" if is_high_poly else "LP_GHOST_"
+    canonical_name = f"{prefix}{key}"
     old_name = obj.name
     obj.name = canonical_name
     if obj.data:
-        obj.data.name = f"MESH_GHOST_{asset_key}"
-    print(f"[RENAME SUCCESS] Renamed '{old_name}' -> '{canonical_name}'.")
+        obj.data.name = f"MESH_{prefix}{key}"
+
+    print(f"[RENAME OK] '{old_name}' -> '{canonical_name}' (Mesh data: '{obj.data.name}').")
+    return True
+
 
 if __name__ == "__main__":
-    validate_scene_naming()
+    audit_scene_naming()

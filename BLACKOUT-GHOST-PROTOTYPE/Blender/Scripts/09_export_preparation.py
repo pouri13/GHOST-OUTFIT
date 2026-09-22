@@ -1,117 +1,180 @@
 """
 =============================================================================
 BLACKOUT ULTIMATE PACK — GHOST TACTICAL OUTFIT
-SCRIPT 09: Sollumz / RAGE Export Pre-Flight Preparation
+SCRIPT 09: Export Pre-Flight Audit & Inspection
 Target: Blender 3.6 LTS / 4.x
-Compatible Engine: Rockstar Advanced Game Engine (RAGE) / GTA V (player_one)
+Compatible Target: Franklin Clinton (GTA V PC)
 =============================================================================
 
-STATUS:
-  [X] READY NOW: Python code verified against standard Blender mesh data structures.
+STATUS CLASSIFICATION:
+  [X] READY NOW: Python audit code verified against standard Blender bpy API.
   [!] REQUIRES BLENDER: Must be executed inside Blender's Python runtime.
-  [ ] REQUIRES GTA V: Final export to .ydd/.ytd requires Sollumz plugin installed.
+  [ ] REQUIRES SOLLUMZ: Final conversion into .ydd/.ytd requires Sollumz addon.
+  [ ] REQUIRES GTA V: Final in-game testing in OpenIV and GTA V.
 
-PURPOSE:
-  Performs pre-flight inspection and packaging before invoking Sollumz:
-  1. Verifies that all transforms are applied (Rot=0, Scale=1.0).
-  2. Ensures mesh has an active Armature modifier pointing to a valid skeleton.
-  3. Verifies exactly 1 UV map named 'UVMap'.
-  4. Ensures geometry is triangulated or clean quad-dominant.
-  5. Sets up Level of Detail (LOD) collections and copies base mesh to LOD1/LOD2.
+SAFETY PRINCIPLE:
+  AUDIT FIRST — NEVER MUTATE WITHOUT EXPLICIT PERMISSION.
+  - Does NOT automatically decimate meshes.
+  - Does NOT automatically apply transforms without reporting.
+  - Does NOT delete geometry or duplicate scenes.
+=============================================================================
 """
 
 import bpy
 
-def run_export_preflight(obj):
+
+def audit_export_readiness(obj):
+    """
+    Comprehensive non-destructive pre-flight audit for GTA V Sollumz export candidates.
+    Checks:
+      1. Mesh Type & Object Naming
+      2. Collection Placement
+      3. Object Transforms (Location, Rotation, Scale)
+      4. UV Layers & Primary Name
+      5. Assigned Materials
+      6. Armature Modifier Binding
+      7. Vertex Group Weight Constraints
+      8. Triangle Count Budget
+    """
     if not obj or obj.type != 'MESH':
-        print(f"[EXPORT PREFLIGHT ERROR] Object '{obj}' is not a mesh.")
+        print(f"[PREFLIGHT ERROR] Object '{obj}' is not a valid mesh.")
         return False
 
     print(f"\n=======================================================")
-    print(f"BLACKOUT GHOST // PRE-FLIGHT AUDIT: {obj.name}")
+    print(f"BLACKOUT GHOST // EXPORT PRE-FLIGHT AUDIT: {obj.name}")
     print(f"=======================================================")
 
-    passed = True
+    failures = 0
+    warnings = 0
 
+    # 1. Naming & Type
+    print("\n--- [1] Object Identity & Naming ---")
+    if obj.name.startswith("LP_GHOST_") or obj.name.startswith("HP_GHOST_"):
+        print(f"  [PASS] Name conforms to canonical pattern: '{obj.name}'")
+    else:
+        print(f"  [WARNING] Name '{obj.name}' does not start with LP_GHOST_ or HP_GHOST_.")
+        warnings += 1
+
+    # 2. Collection Placement
+    print("\n--- [2] Collection Placement ---")
+    parent_cols = [c.name for c in bpy.data.collections if obj.name in c.objects]
+    if parent_cols:
+        print(f"  [PASS] Located in collection(s): {', '.join(parent_cols)}")
+    else:
+        print("  [WARNING] Object is not linked to any specific production collection.")
+        warnings += 1
+
+    # 3. Transform Status
+    print("\n--- [3] Transform Calibration ---")
     loc_err = any(abs(v) > 0.0001 for v in obj.location)
     rot_err = any(abs(v) > 0.0001 for v in obj.rotation_euler)
     scale_err = any(abs(v - 1.0) > 0.0001 for v in obj.scale)
 
     if loc_err or rot_err or scale_err:
-        print("  [FAIL] Unapplied transforms detected! Auto-applying now...")
-        bpy.context.view_layer.objects.active = obj
-        obj.select_set(True)
-        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-        print("  [FIXED] Transforms applied to (0,0,0)/(1,1,1).")
+        print(f"  [FAIL] Unapplied transforms detected! Must apply before export.")
+        print(f"         Location: ({obj.location.x:.3f}, {obj.location.y:.3f}, {obj.location.z:.3f})")
+        print(f"         Rotation: ({obj.rotation_euler.x:.3f}, {obj.rotation_euler.y:.3f}, {obj.rotation_euler.z:.3f})")
+        print(f"         Scale:    ({obj.scale.x:.3f}, {obj.scale.y:.3f}, {obj.scale.z:.3f})")
+        failures += 1
     else:
-        print("  [PASS] All transforms zeroed and scale is 1.0.")
+        print("  [PASS] Transforms zeroed (Location = 0, Rotation = 0, Scale = 1.0).")
 
-    has_armature = False
+    # 4. UV Configuration
+    print("\n--- [4] UV Layer Inspection ---")
+    if not obj.data.uv_layers:
+        print("  [FAIL] Object has NO UV layers! Must be unwrapped before export.")
+        failures += 1
+    else:
+        primary_uv = obj.data.uv_layers[0]
+        if primary_uv.name == "UVMap":
+            print(f"  [PASS] Primary UV map verified: '{primary_uv.name}'")
+        else:
+            print(f"  [WARNING] Primary UV layer is named '{primary_uv.name}' (Standard convention: 'UVMap').")
+            warnings += 1
+
+    # 5. Materials
+    print("\n--- [5] Material Slots ---")
+    if not obj.material_slots:
+        print("  [FAIL] No material assigned to object!")
+        failures += 1
+    else:
+        for idx, slot in enumerate(obj.material_slots):
+            if slot.material:
+                sollumz_tag = slot.material.get("sollumz_status", "NOT_TAGGED")
+                print(f"  [PASS] Slot {idx}: '{slot.material.name}' (Sollumz Status: {sollumz_tag})")
+            else:
+                print(f"  [FAIL] Slot {idx} is empty (no material assigned).")
+                failures += 1
+
+    # 6. Armature Binding
+    print("\n--- [6] Armature Rig Binding ---")
+    bound_armature = None
     for m in obj.modifiers:
         if m.type == 'ARMATURE' and m.object:
-            has_armature = True
-            print(f"  [PASS] Bound to armature: '{m.object.name}'.")
+            bound_armature = m.object
             break
-    if not has_armature:
+
+    if bound_armature:
+        print(f"  [PASS] Bound to armature: '{bound_armature.name}'")
+    else:
         print("  [FAIL] Missing Armature modifier! RAGE engine requires skeleton binding for apparel.")
-        passed = False
+        failures += 1
 
-    if not obj.data.uv_layers or obj.data.uv_layers.active.name != "UVMap":
-        print("  [FAIL] Active UV layer must be named 'UVMap'.")
-        passed = False
+    # 7. Skinning Influences
+    print("\n--- [7] Skinning & Vertex Groups ---")
+    if not obj.vertex_groups:
+        print("  [FAIL] Object has NO vertex groups (no bone weights).")
+        failures += 1
     else:
-        print("  [PASS] Primary UV map verified ('UVMap').")
+        unweighted = 0
+        over_four = 0
+        for v in obj.data.vertices:
+            inf = len(v.groups)
+            if inf == 0:
+                unweighted += 1
+            elif inf > 4:
+                over_four += 1
 
-    if len(obj.material_slots) == 0:
-        print("  [FAIL] No material assigned to object.")
-        passed = False
-    else:
-        for slot in obj.material_slots:
-            if slot.material:
-                print(f"  [PASS] Assigned Material: '{slot.material.name}'.")
+        if unweighted > 0:
+            print(f"  [FAIL] {unweighted} unweighted vertices detected (will cause vertex spikes in GTA V).")
+            failures += 1
+        elif over_four > 0:
+            print(f"  [FAIL] {over_four} vertices have > 4 influences (exceeds RAGE buffer limit).")
+            failures += 1
+        else:
+            print(f"  [PASS] Vertex weights valid: 0 unweighted, all vertices <= 4 influences.")
 
+    # 8. Geometry Budget
+    print("\n--- [8] Geometry & Polygon Budget ---")
     tri_count = sum(len(f.vertices) - 2 for f in obj.data.polygons)
-    print(f"  [INFO] Polycount: {len(obj.data.vertices)} vertices | {tri_count} triangles.")
+    vert_count = len(obj.data.vertices)
+    print(f"  Polycount: {vert_count:,} Vertices | {tri_count:,} Triangles")
+    if tri_count > 25000:
+        print(f"  [WARNING] Triangle count ({tri_count:,}) is high for a single apparel piece.")
+        warnings += 1
+    else:
+        print("  [PASS] Triangle count within normal GTA V budget range.")
 
-    return passed
+    # Summary
+    print("\n=======================================================")
+    print(f"AUDIT SUMMARY FOR '{obj.name}':")
+    print(f"  Failures: {failures} | Warnings: {warnings}")
+    if failures == 0:
+        print("RESULT: PASS — Asset is clean and ready for Phase D (Sollumz Packaging).")
+    else:
+        print("RESULT: FAIL — Resolve the failure items above before attempting Sollumz export.")
+    print("=======================================================\n")
 
-def generate_lod_meshes(base_obj):
-    print(f"\n[LOD GENERATOR] Generating LOD meshes for: '{base_obj.name}'")
+    return failures == 0
 
-    lod1_col = bpy.data.collections.get("LOD1_Medium_Distance")
-    lod2_col = bpy.data.collections.get("LOD2_Far_Distance")
 
-    if not lod1_col or not lod2_col:
-        print("  [!] LOD collections not found; running Script 02 recommended.")
-        return
-
-    lod1_obj = base_obj.copy()
-    lod1_obj.data = base_obj.data.copy()
-    lod1_obj.name = f"{base_obj.name}_LOD1"
-    lod1_col.objects.link(lod1_obj)
-    
-    dec1 = lod1_obj.modifiers.new(name="LOD1_Decimate", type='DECIMATE')
-    dec1.ratio = 0.50
-    print(f"  [LOD1] Created '{lod1_obj.name}' (Decimate: 50%).")
-
-    lod2_obj = base_obj.copy()
-    lod2_obj.data = base_obj.data.copy()
-    lod2_obj.name = f"{base_obj.name}_LOD2"
-    lod2_col.objects.link(lod2_obj)
-    
-    dec2 = lod2_obj.modifiers.new(name="LOD2_Decimate", type='DECIMATE')
-    dec2.ratio = 0.20
-    print(f"  [LOD2] Created '{lod2_obj.name}' (Decimate: 20%).")
-
-def run_preflight():
+def run_active_export_preflight():
     obj = bpy.context.active_object
     if not obj:
-        print("[PREFLIGHT ERROR] No active object selected.")
+        print("[PREFLIGHT ERROR] Select a target mesh object in Blender to inspect.")
         return
-    status = run_export_preflight(obj)
-    if status:
-        generate_lod_meshes(obj)
-        print("\n[PREFLIGHT RESULT] Asset is fully packaged and ready for Sollumz export.")
+    audit_export_readiness(obj)
+
 
 if __name__ == "__main__":
-    run_preflight()
+    run_active_export_preflight()
