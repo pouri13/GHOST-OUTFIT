@@ -1,0 +1,6 @@
+{
+  "name": "Franklin — BLACKOUT Ultimate Pack (Ghost Operator Prototype)",
+  "description": "Production technical pipeline, 3D turnaround suite, Blender Python automation, and GTA V modding specifications for the Franklin Blackout Ghost Operator prototype.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
